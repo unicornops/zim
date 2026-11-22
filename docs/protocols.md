@@ -2,6 +2,8 @@
 
 Zim aims to support every public chat system through protocol adapters. Each adapter will document which account types, login flows, and messaging features it supports. A bridge, business integration, or bot can be useful when it is the available path. Its account type and limitations need to be visible in setup and in the route picker.
 
+Use the [network issue backlog](https://github.com/unicornops/zim/labels/network-adapter) to track each network independently. Every adapter is a reusable Rust library with a headless consumer example. Voice calls, video calls, and screen sharing are part of the support target when the network offers them. See the [architecture](architecture.md) for the crate boundaries and call contract.
+
 ## First adapters
 
 | System | Implementation | Discovery and release criteria |
@@ -28,4 +30,12 @@ Zim aims to support every public chat system through protocol adapters. Each ada
 1. Start with the service's documented client protocol or API and confirm supported account types, client registration, and scopes. Track direct-client support and bridge support separately. For restricted services, record the constraint and the remaining interoperability questions.
 2. Prefer a maintained Rust SDK if it meets the feature and maintenance requirements. If the suitable library is written in another language, plan a focused Rust port where practical. For a licensed port, preserve upstream notices and verify its behavior against compatibility fixtures. Where a port would duplicate sensitive protocol or cryptographic code or delay support, use a maintained library through a narrow FFI or process boundary and review it over time.
 3. For undocumented protocols, assess whether independent interoperability research and a third-party client are feasible for the service. Where permitted, document observed behavior using authorized test accounts and environments, publish a clean-room protocol description with synthetic fixtures, and implement against that description. Track upstream changes, maintenance ownership, and what would cause the adapter to be paused.
-4. Run the shared adapter contract tests for reconnect and replay, account isolation, send outcomes, and feature reporting. Check service-specific behavior on dedicated test accounts. Before marking a service supported, record the supported platforms, authentication path, known gaps, and coverage for direct messages, presence, offline delivery, groups, attachments, and encryption. Keep unsupported capabilities visible to the routing engine and UI.
+4. Implement the adapter as an independently consumable Rust library and test its public API from a headless Rust example. Document runtime, native dependencies, and any optional media features. Run the shared adapter contract tests for reconnect and replay, account isolation, send outcomes, and feature reporting. Check service-specific behavior on dedicated test accounts.
+5. Record coverage for direct messages, presence, offline delivery, groups, attachments, and encryption. Evaluate voice calling, video calling, and screen sharing separately as described below. Update the network issue with verified capabilities and known gaps, and keep those states visible to routing and the UI.
+
+## Calling and screen-sharing checklist
+
+- For each network, record whether voice calls, video calls, and screen sharing are offered and which account types and integration routes expose them. Include direct and group coverage, initiator and recipient roles, supported platforms, and any required entitlements or deployment settings.
+- Track each feature as verified, planned, blocked by the integration, unavailable on the network, or unknown. Document the provider or account constraint when the first-party client offers a feature that the integration cannot access. Use the same network issue when recording the gap.
+- Verify incoming and outgoing calls separately. For screen sharing, verify sending and receiving, source selection and stop-share behavior, and screen audio where offered. Verify negotiated media security and cleanup on disconnect, hangup, permission denial, and revocation.
+- Implement each available capability within the reusable adapter and shared host interfaces. A network can ship usable text while media work is tracked. Feature claims should reflect the account routes and platforms actually verified.

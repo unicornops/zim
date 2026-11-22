@@ -6,7 +6,7 @@ Deliver a GPUI desktop app for macOS, Windows, and Linux with an account setup s
 
 The release test uses one person with an XMPP identity and a Matrix identity. Link them manually, send over XMPP while it is available, and then send the next message over Matrix when XMPP becomes unavailable and Matrix reports fresh availability. Test the same transition with Matrix presence unavailable and explicitly choose the Matrix route. Replies from both identities appear under the same person with their source network visible. Repeat with a pinned route. Restart the app and verify that the identity links, timeline, and pending send state survive. Run the desktop smoke test on all three target operating systems.
 
-Start with direct text chats. Model group conversations as separate, network-owned threads so group routing can be designed later. Attachments, calls, group chat features, and third-party plugin installation follow the first release.
+Start with direct text chats. Model group conversations as separate, network-owned threads so group routing can be designed later. Attachments, voice and video calling, screen sharing, group chat features, and third-party plugin installation follow the first release. For every supported network, track and implement the calling and sharing features it offers, including restrictions of the chosen account route. [Calling architecture](architecture.md#calls-and-screen-sharing)
 
 ## Contacts and conversations
 
@@ -31,13 +31,16 @@ Keep presence and send eligibility distinct. A connected adapter may know a serv
 
 ## Rust workspace and adapter contract
 
+The [architecture](architecture.md) defines reusable crate boundaries, the adapter contract, and the media design.
+
 | Boundary | First implementation |
 | --- | --- |
 | `zim-core` | Rust domain types, contact linking, route selection, conversation projection, and outbox rules. No GPUI or provider SDK dependencies. |
-| `zim-protocol` | Async adapter contract and capability types. Include account setup, connect/disconnect, sync cursors, roster, presence, incoming messages, and send outcomes. Preserve provider identifiers and distinguish unsupported operations from temporary errors. |
+| `zim-protocol` | Async adapter contract and capability types. Include account setup, connect/disconnect, sync cursors, roster, presence, incoming messages, send outcomes, and call controls and events as media support is added. Preserve provider identifiers and distinguish unsupported operations from temporary errors. |
 | `zim-store` | SQLite for profiles, routes, messages, sync state, and the outbox. Commit incoming records and cursor updates together. Scope remote deduplication keys by local account and provider conversation. Store tokens in OS credential storage and use SDK-managed storage for encryption keys. Decide local message cache and retention policy before shipping. |
-| `zim-desktop` | GPUI people list, direct timeline, composer, route controls, and account setup. Keep network work off the UI thread and use platform credential, notification, and packaging integrations. |
-| `zim-adapter-*` | Demo, XMPP, and Matrix adapters behind the same contract. Each owns provider auth, feature discovery, encoding, reconnect behavior, and translation to core events. |
+| `zim-desktop` | GPUI people list, direct timeline, composer, route controls, account setup, and call controls. Keep network work off the UI thread and use platform credential, notification, and packaging integrations. |
+| `zim-media` | Interfaces for media devices, rendering, and session media and shared implementations where useful. Keep platform-specific capture behind these interfaces. |
+| `zim-adapter-*` | One Rust library per network with a shared contract and an independent consumer example. Each owns provider auth, feature discovery, encoding, call negotiation, reconnect behavior, and translation to shared events. |
 
 Start with separately compiled Rust crates registered in the app at build time. Adding an adapter should require its crate and registration, with reusable account and capability UI. Keep event delivery bounded and reconnects scoped to the affected account. After validating the contract on two real services, design a versioned out-of-process plugin interface. Give plugins per-account access, explicit capabilities, and failure isolation, and keep unrestricted third-party code out of the desktop process.
 
@@ -50,5 +53,6 @@ Start with separately compiled Rust crates registered in the app at build time. 
 | 3 | Prove the UI with a demo adapter | Simulate two independent services with controllable presence, disconnections, and delivery outcomes. Test one-person routing, incoming replies, and keyboard operation end to end without live accounts. |
 | 4 | Add XMPP | Show login, roster, subscribed presence, direct text, reconnect, and incoming message deduplication on a controlled XMPP deployment. Surface encryption capability and track OMEMO scope separately. |
 | 5 | Add Matrix and run the release test | Use the Matrix Rust SDK for sync and end-to-end encryption. Verify encrypted direct chats and device verification on test homeservers. Exercise the shared XMPP/Matrix timeline and routing with absent Matrix presence as well as a confirmed reachable destination. Verify credential storage, platform smoke tests, and trace redaction before packaging. |
+| 6 | Validate and expand calling and sharing | Exercise call control and capability changes with simulated networks. Add voice, video, and screen sharing to each supported network where available. Verify each capability on the intended account route and desktop platforms and track provider or account limitations in its network issue. |
 
 Track plugin expansion and candidate protocol support in the [protocol roadmap](protocols.md).

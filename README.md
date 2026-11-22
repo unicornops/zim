@@ -6,9 +6,13 @@ Open a conversation with a person, even if you know them on several networks. Ea
 
 The first messaging release targets one-to-one text across XMPP and Matrix, with a local demo adapter for testing. See the [project plan](docs/plan.md), [protocol roadmap](docs/protocols.md), and [first milestone](https://github.com/unicornops/zim/milestone/1).
 
+Each network adapter is planned as a reusable Rust library for Zim and other applications. Zim targets voice and video calling and screen sharing wherever the network offers them. See the [architecture](docs/architecture.md) and [network issue backlog](https://github.com/unicornops/zim/labels/network-adapter).
+
 ## Development
 
 Install [Rust through rustup](https://rustup.rs/) and the [platform prerequisites](docs/development.md). Launch the desktop shell with `cargo run --locked`. GitHub Actions tests and builds the workspace on all three platforms. See the [development and release guide](docs/development.md).
+
+See the [contributor instructions](AGENTS.md) for repository conventions and adapter requirements.
 
 ## License
 

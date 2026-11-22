@@ -33,7 +33,7 @@ Use Conventional Commits for changes that should appear in the changelog. Releas
 | macOS | `.tar.gz`, zipped `.app`, and DMG |
 | Windows x86-64 | `.zip` and MSI |
 
-Trusted macOS builds use the same organization-level Apple credentials as Zmail when available. They use Developer ID signing and notarization when both sets of credentials are configured, and ad-hoc signing when the certificate is absent. Windows and Debian installers currently have no platform signature. GitHub publishes provenance attestations for all release assets, which you can verify with `gh attestation verify <file> --repo unicornops/zim`.
+The macOS app bundle and DMG use the same organization-level Apple credentials as Zmail. The bundle uses Developer ID signing and notarization when both sets of credentials are configured, and ad-hoc signing when the certificate is absent. Windows and Debian installers currently have no platform signature. GitHub publishes provenance attestations for all release assets, which you can verify with `gh attestation verify <file> --repo unicornops/zim`.
 
 To verify packaging with no public release, use the Release Please workflow's dry run. A dry run of `main` also exercises the macOS signing path when credentials are available. To rebuild assets for an existing release, provide its `vX.Y.Z` tag and set `dry_run=false`.
 

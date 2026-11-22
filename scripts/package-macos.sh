@@ -6,9 +6,13 @@ version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml)
 bundle=Zim.app
 staging=$(mktemp -d)
 keychain=
+search_path=()
 cleanup() {
   if [[ -n "$keychain" ]]; then
     security delete-keychain "$keychain" || true
+    if [[ -n "${search_path[0]:-}" ]]; then
+      security list-keychains -d user -s "${search_path[@]}" || true
+    fi
   fi
   rm -rf "$staging"
 }
@@ -40,16 +44,27 @@ PLIST
 plutil -lint "$bundle/Contents/Info.plist"
 
 if [[ -n "${APPLE_CERTIFICATE_BASE64:-}" ]]; then
+  while IFS='"' read -r _ path _; do
+    if [[ -n "$path" ]]; then
+      search_path+=("$path")
+    fi
+  done < <(security list-keychains -d user)
   keychain="$staging/signing.keychain-db"
   password=$(uuidgen)
   security create-keychain -p "$password" "$keychain"
   security set-keychain-settings -lut 7200 "$keychain"
   security unlock-keychain -p "$password" "$keychain"
+  if [[ -n "${search_path[0]:-}" ]]; then
+    security list-keychains -d user -s "$keychain" "${search_path[@]}"
+  else
+    security list-keychains -d user -s "$keychain"
+  fi
   printf '%s' "$APPLE_CERTIFICATE_BASE64" | base64 --decode > "$staging/cert.p12"
-  security import "$staging/cert.p12" -k "$keychain" -P "${APPLE_CERTIFICATE_PASSWORD:-}" -T /usr/bin/codesign
+  security import "$staging/cert.p12" -k "$keychain" -P "${APPLE_CERTIFICATE_PASSWORD:-}" \
+    -t cert -f pkcs12 -T /usr/bin/codesign -T /usr/bin/security
   rm -f "$staging/cert.p12"
-  security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain"
-  identity=$(security find-identity -v -p codesigning "$keychain" | awk '/Developer ID Application/ && !found {print $2; found=1}')
+  security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain" >/dev/null
+  identity=$(security find-identity -v -p codesigning "$keychain" | awk -F '"' '/Developer ID Application/ && !found {print $2; found=1}')
   test -n "$identity"
   codesign --force --sign "$identity" --keychain "$keychain" --options runtime --timestamp "$bundle"
 

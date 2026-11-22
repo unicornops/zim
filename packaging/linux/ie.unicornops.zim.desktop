@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Zim
+Comment=Desktop instant messaging client
+Exec=zim-app
+Terminal=false
+StartupWMClass=ie.unicornops.zim
+Categories=Network;InstantMessaging;

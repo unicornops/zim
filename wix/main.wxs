@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" Name="Zim" Language="1033"
+           Version="!(bind.fileVersion.zim_exe)" Manufacturer="UnicornOps"
+           UpgradeCode="AD0B5389-1263-482A-844E-8EF0C02E7575">
+    <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Zim is already installed."
+                  AllowSameVersionUpgrades="yes" />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="APPLICATIONFOLDER" Name="Zim">
+          <Component Id="ZimExecutable" Guid="75BEE85B-0F4D-4D58-9B39-38ABF85B69AD" Win64="yes">
+            <File Id="zim_exe" Source="$(var.CargoTargetDir)\release\zim-app.exe" KeyPath="yes" />
+          </Component>
+          <Component Id="LicenseFiles" Guid="ACAA009C-AECE-40EF-8C98-37576795F6CF" Win64="yes">
+            <File Id="ZimLicense" Name="LICENSE.txt" Source="$(var.CargoTargetDir)\..\LICENSE" KeyPath="yes" />
+            <File Id="GpuiLicense" Source="$(var.CargoTargetDir)\..\licenses\GPUI-Apache-2.0.txt" />
+          </Component>
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Component Id="StartMenuShortcut" Guid="12B7495B-1244-4004-AED6-5F4BBDD94004" Win64="yes">
+          <Shortcut Id="ZimStartMenuShortcut" Name="Zim" Target="[#zim_exe]"
+                    Description="Zim desktop instant messaging client" WorkingDirectory="APPLICATIONFOLDER">
+            <ShortcutProperty Key="System.AppUserModel.ID" Value="ie.unicornops.zim" />
+          </Shortcut>
+          <RegistryValue Root="HKLM" Key="Software\UnicornOps\Zim" Name="installed"
+                         Type="integer" Value="1" KeyPath="yes" />
+        </Component>
+      </Directory>
+    </Directory>
+
+    <Feature Id="Main" Title="Zim" Level="1" Absent="disallow">
+      <ComponentRef Id="ZimExecutable" />
+      <ComponentRef Id="LicenseFiles" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+  </Product>
+</Wix>

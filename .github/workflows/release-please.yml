@@ -1,0 +1,224 @@
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: Existing release tag to rebuild, or a branch/tag for a dry run
+        required: true
+        type: string
+      dry_run:
+        description: Build packages as workflow artifacts without publishing
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release_please:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      created: ${{ steps.release.outputs.release_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - name: Update the release PR or create the release
+        id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          config-file: .github/release-please-config.json
+          manifest-file: .github/.release-please-manifest.json
+
+  release_target:
+    needs: release_please
+    if: |
+      !cancelled() &&
+      (needs.release_please.outputs.created == 'true' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    outputs:
+      ref: ${{ steps.resolve.outputs.ref }}
+      tag: ${{ steps.resolve.outputs.tag }}
+      publish: ${{ steps.resolve.outputs.publish }}
+      sign: ${{ steps.resolve.outputs.sign }}
+    steps:
+      - name: Resolve the build ref
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.release_please.outputs.tag }}
+          MANUAL_REF: ${{ inputs.tag_name }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          ref="${RELEASE_TAG:-$MANUAL_REF}"
+          git check-ref-format --allow-onelevel "$ref"
+          tag="$ref"
+          publish=true
+          sign=true
+          if [[ "$DRY_RUN" == true ]]; then
+            publish=false
+            sign=false
+            if [[ "$ref" == main && "$GITHUB_REF" == refs/heads/main ]]; then
+              ref="$GITHUB_SHA"
+              sign=true
+            fi
+          else
+            [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+            gh release view "$tag" --json tagName --jq .tagName
+            ref="refs/tags/$tag"
+          fi
+          {
+            echo "tag=$tag"
+            echo "ref=$ref"
+            echo "publish=$publish"
+            echo "sign=$sign"
+          } >> "$GITHUB_OUTPUT"
+
+  packages:
+    name: Package (${{ matrix.name }})
+    needs: release_target
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            name: Linux
+            archive: zim-linux-x86_64.tar.gz
+          - os: macos-latest
+            name: macOS
+            archive: zim-macos.tar.gz
+          - os: windows-latest
+            name: Windows
+            archive: zim-windows-x86_64.zip
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release_target.outputs.ref }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-rust
+
+      - name: Build the tagged app
+        run: cargo build -p zim-app --release --locked
+
+      - name: Create Unix archive
+        if: runner.os != 'Windows'
+        env:
+          ARCHIVE: ${{ matrix.archive }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts archive/licenses
+          cp target/release/zim-app LICENSE archive/
+          cp licenses/GPUI-Apache-2.0.txt archive/licenses/
+          tar -czf "artifacts/$ARCHIVE" -C archive .
+
+      - name: Create Debian package
+        if: runner.os == 'Linux'
+        run: |
+          cargo install cargo-deb --version 3.8.0 --locked
+          cargo deb -p zim-app --no-build --locked --output artifacts/zim-linux-x86_64.deb
+          dpkg-deb --info artifacts/zim-linux-x86_64.deb
+
+      - name: Create Windows archive
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          ARCHIVE: ${{ matrix.archive }}
+        run: |
+          New-Item -ItemType Directory -Force artifacts, archive/licenses | Out-Null
+          Copy-Item target/release/zim-app.exe, LICENSE archive/
+          Copy-Item licenses/GPUI-Apache-2.0.txt archive/licenses/
+          Compress-Archive -Path archive/* -DestinationPath "artifacts/$env:ARCHIVE"
+
+      - name: Create Windows MSI
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          cargo install cargo-wix --version 0.3.9 --locked
+          cargo wix -p zim-app --no-build --nocapture
+          mv target/wix/*.msi artifacts/zim-windows-x86_64.msi
+
+      - name: Create signed macOS bundle and DMG
+        if: runner.os == 'macOS'
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ needs.release_target.outputs.sign == 'true' && secrets.APPLE_CERTIFICATE_BASE64 || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ needs.release_target.outputs.sign == 'true' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_DEVELOPER_ID: ${{ needs.release_target.outputs.sign == 'true' && secrets.APPLE_DEVELOPER_ID || '' }}
+          APPLE_APP_PASSWORD: ${{ needs.release_target.outputs.sign == 'true' && secrets.APPLE_APP_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ needs.release_target.outputs.sign == 'true' && secrets.APPLE_TEAM_ID || '' }}
+        run: bash scripts/package-macos.sh
+
+      - name: Hash the packages
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.name }}
+        run: |
+          cd artifacts
+          if command -v sha256sum >/dev/null; then
+            checksum=(sha256sum)
+          else
+            checksum=(shasum -a 256)
+          fi
+          "${checksum[@]}" -- * > "../SHA256SUMS-$PLATFORM"
+          mv "../SHA256SUMS-$PLATFORM" .
+          "${checksum[@]}" --check "SHA256SUMS-$PLATFORM"
+
+      - name: Upload packages as workflow artifacts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: zim-${{ matrix.name }}
+          path: artifacts/*
+          if-no-files-found: error
+
+  publish:
+    name: Attest and publish release assets
+    needs: [release_target, packages]
+    if: needs.release_target.outputs.publish == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: zim-*
+          path: dist
+
+      - name: Verify all platform checksums
+        run: |
+          set -euo pipefail
+          mkdir release
+          for platform in Linux macOS Windows; do
+            (
+              cd "dist/zim-$platform"
+              sha256sum --strict --check "SHA256SUMS-$platform"
+              cp -- * ../../release/
+            )
+          done
+
+      - name: Attest the release assets
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: release/*
+
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.release_target.outputs.tag }}
+        run: gh release upload "$TAG" release/* --clobber

@@ -2,7 +2,7 @@
 
 ## First release
 
-Deliver a GPUI desktop app for macOS, Windows, and Linux with an account setup screen, searchable people list, conversation timeline, and composer with a visible route selector. Use the cross-platform desktop style of ZChat as a product reference. Confirm the intended ZChat reference before borrowing specific interaction patterns. For GPUI build and packaging decisions, start with [UnicornOps' Zmail GPUI notes](https://github.com/unicornops/zmail/blob/main/docs/upstream/zed.md).
+Deliver a GPUI desktop app for macOS, Windows, and Linux with an account setup screen, searchable people list, conversation timeline, and composer with a visible route selector. Use [UnicornOps’ Zmail](https://github.com/unicornops/zmail) as the cross-platform desktop reference. The [development and release guide](development.md) records Zim's build and packaging conventions.
 
 The release test uses one person with an XMPP identity and a Matrix identity. Link them manually, send over XMPP while it is available, and then send the next message over Matrix when XMPP becomes unavailable and Matrix reports fresh availability. Test the same transition with Matrix presence unavailable and explicitly choose the Matrix route. Replies from both identities appear under the same person with their source network visible. Repeat with a pinned route. Restart the app and verify that the identity links, timeline, and pending send state survive. Run the desktop smoke test on all three target operating systems.
 
@@ -45,7 +45,7 @@ Start with separately compiled Rust crates registered in the app at build time. 
 
 | Order | Work | Done when |
 | --- | --- | --- |
-| 1 | Bootstrap Rust and GPUI | Commit a lockfile, pin a verified upstream GPUI revision and compatible Rust toolchain, and build a keyboard-navigable app shell. CI runs formatting, linting, tests, and GPUI builds on all three target OSes. Record packaging prerequisites and choose a project license. |
+| 1 | Bootstrap Rust and GPUI | Commit a lockfile, pin upstream GPUI and Rust, and build the app shell with its native quit shortcut. Run linting, tests, and GPUI builds on all three target OSes. Set up native package automation and adopt Zmail's GPL-3.0-only license. |
 | 2 | Model people, routes, and storage | Add persistent accounts, identity linking and unlinking, direct timeline projection, routing, and outbox state. Test same handle on separate services, stale presence, pins, encryption requirements, restart, and ambiguous send outcomes. |
 | 3 | Prove the UI with a demo adapter | Simulate two independent services with controllable presence, disconnections, and delivery outcomes. Test one-person routing, incoming replies, and keyboard operation end to end without live accounts. |
 | 4 | Add XMPP | Show login, roster, subscribed presence, direct text, reconnect, and incoming message deduplication on a controlled XMPP deployment. Surface encryption capability and track OMEMO scope separately. |

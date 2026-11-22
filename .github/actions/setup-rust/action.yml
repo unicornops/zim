@@ -1,0 +1,32 @@
+name: Set up the Zim build
+description: Install native dependencies and the pinned Rust toolchain
+runs:
+  using: composite
+  steps:
+    - name: Install Linux build dependencies
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libdbus-1-dev libasound2-dev libxcb1-dev libxkbcommon-dev libxkbcommon-x11-dev libfontconfig1-dev libfreetype6-dev
+
+    - name: Read the pinned Rust toolchain
+      id: toolchain
+      shell: bash
+      run: |
+        channel=$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)
+        test -n "$channel"
+        echo "channel=$channel" >> "$GITHUB_OUTPUT"
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable
+      with:
+        toolchain: ${{ steps.toolchain.outputs.channel }}
+        components: rustfmt, clippy
+
+    - name: Cache Cargo git dependencies
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cargo/git/db
+        key: cargo-git-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+        restore-keys: cargo-git-${{ runner.os }}-

@@ -26,7 +26,7 @@
                     Description="Zim desktop instant messaging client" WorkingDirectory="APPLICATIONFOLDER">
             <ShortcutProperty Key="System.AppUserModel.ID" Value="ie.unicornops.zim" />
           </Shortcut>
-          <RegistryValue Root="HKLM" Key="Software\UnicornOps\Zim" Name="installed"
+          <RegistryValue Root="HKCU" Key="Software\UnicornOps\Zim" Name="installed"
                          Type="integer" Value="1" KeyPath="yes" />
         </Component>
       </Directory>

@@ -7262,7 +7262,7 @@ dependencies = [
 
 [[package]]
 name = "zim-adapter-slack"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "reqwest",
  "serde",
@@ -7274,7 +7274,7 @@ dependencies = [
 
 [[package]]
 name = "zim-app"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "winresource",
  "zim-desktop",
@@ -7282,7 +7282,7 @@ dependencies = [
 
 [[package]]
 name = "zim-desktop"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "gpui",

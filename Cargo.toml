@@ -32,7 +32,7 @@ assets = [
 workspace = true
 
 [workspace]
-members = ["crates/zim-desktop"]
+members = ["crates/zim-desktop", "crates/zim-adapter-slack"]
 resolver = "3"
 
 [workspace.package]

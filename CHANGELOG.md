@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/unicornops/zim/compare/v0.1.0...v0.2.0) (2026-11-23)
+
+
+### Features
+
+* **slack:** add a reusable Slack messaging adapter ([#102](https://github.com/unicornops/zim/issues/102)) ([740130c](https://github.com/unicornops/zim/commit/740130cbb2a1b5f3f2f2ff7f9236156aebe19fa1))
+
 ## 0.1.0 (2026-11-22)
 
 

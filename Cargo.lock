@@ -6697,7 +6697,7 @@ dependencies = [
 
 [[package]]
 name = "zim-app"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "winresource",
  "zim-desktop",
@@ -6705,7 +6705,7 @@ dependencies = [
 
 [[package]]
 name = "zim-desktop"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "gpui",
